@@ -1,11 +1,15 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../models/pothole.dart';
+import '../../services/damage_detection_service.dart';
 import '../../services/location_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/damage_marker_icon.dart';
 import '../../widgets/dashed_border_box.dart';
+import '../../widgets/detection_dialogs.dart';
 import 'edit_location_map_screen.dart';
 
 const _navy = Color(0xFF0D1B3E);
@@ -30,10 +34,11 @@ class _ReportScreenState extends State<ReportScreen> {
   final _descCtrl = TextEditingController();
   late final TapGestureRecognizer _browseRecognizer;
 
-  final List<File> _images = [];
-  final Map<File, double> _progress = {};
-  final Map<File, bool> _paused = {};
-  final Map<File, int> _sizes = {};
+  final List<XFile> _images = [];
+  final Map<XFile, double> _progress = {};
+  final Map<XFile, bool> _paused = {};
+  final Map<XFile, int> _sizes = {};
+  final Map<XFile, Uint8List> _thumbBytes = {};
   Timer? _progressTimer;
 
   double? _lat;
@@ -41,6 +46,11 @@ class _ReportScreenState extends State<ReportScreen> {
   ResolvedAddress? _address;
   bool _locating = false;
   bool _submitting = false;
+
+  final DamageDetectionService _detectionService =
+      SimulatedDamageDetectionService();
+  DamageType? _damageType;
+  bool _detecting = false;
 
   @override
   void initState() {
@@ -151,19 +161,78 @@ class _ReportScreenState extends State<ReportScreen> {
     }
     if (picked.isEmpty) return;
 
+    final wasEmpty = _images.isEmpty;
     final remainingSlots = 5 - _images.length;
-    final toAdd =
-        picked.take(remainingSlots).map((x) => File(x.path)).toList();
+    final toAdd = picked.take(remainingSlots).toList();
+
+    // Read size/bytes via XFile's async, cross-platform API — dart:io's
+    // File.lengthSync()/Image.file() cannot run on Flutter Web at all.
+    final sizes = <XFile, int>{};
+    final bytes = <XFile, Uint8List>{};
+    for (final f in toAdd) {
+      sizes[f] = await f.length();
+      bytes[f] = await f.readAsBytes();
+    }
 
     setState(() {
       for (final f in toAdd) {
         _images.add(f);
         _progress[f] = 0;
         _paused[f] = false;
-        _sizes[f] = f.lengthSync();
+        _sizes[f] = sizes[f]!;
+        _thumbBytes[f] = bytes[f]!;
       }
     });
     _startProgressTicker();
+
+    // Classify once per report, using the first photo added — extra
+    // angles of the same damage don't need re-classification.
+    if (wasEmpty && toAdd.isNotEmpty) {
+      _runDetection(toAdd.first);
+    }
+  }
+
+  Future<void> _runDetection(XFile image) async {
+    setState(() => _detecting = true);
+    DetectionResult result;
+    try {
+      result = await _detectionService.detect(image);
+    } finally {
+      if (mounted) setState(() => _detecting = false);
+    }
+    if (!mounted) return;
+
+    if (result.isConfident) {
+      final confirmed = await showDetectionConfirmDialog(
+        context,
+        type: result.type!,
+        confidence: result.confidence,
+      );
+      if (!mounted) return;
+      if (confirmed == true) {
+        setState(() => _damageType = result.type);
+      } else if (confirmed == false) {
+        _retakeImages();
+      }
+    } else {
+      final selected = await showManualDamageTypeDialog(context);
+      if (!mounted) return;
+      if (selected != null) setState(() => _damageType = selected);
+    }
+  }
+
+  void _retakeImages() {
+    setState(() {
+      for (final f in List<XFile>.from(_images)) {
+        _progress.remove(f);
+        _paused.remove(f);
+        _sizes.remove(f);
+        _thumbBytes.remove(f);
+      }
+      _images.clear();
+      _damageType = null;
+    });
+    _showImageSourceSheet();
   }
 
   void _startProgressTicker() {
@@ -183,12 +252,13 @@ class _ReportScreenState extends State<ReportScreen> {
     });
   }
 
-  void _removeImage(File f) {
+  void _removeImage(XFile f) {
     setState(() {
       _images.remove(f);
       _progress.remove(f);
       _paused.remove(f);
       _sizes.remove(f);
+      _thumbBytes.remove(f);
     });
   }
 
@@ -215,6 +285,7 @@ class _ReportScreenState extends State<ReportScreen> {
         title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
         description:
             _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        damageType: _damageType,
         images: _images,
       );
 
@@ -301,7 +372,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     child: SizedBox(
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: _submitting ? null : _submit,
+                        onPressed: (_submitting || _detecting) ? null : _submit,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _navy,
                           foregroundColor: Colors.white,
@@ -403,16 +474,48 @@ class _ReportScreenState extends State<ReportScreen> {
           if (_images.isNotEmpty) ...[
             const SizedBox(height: 16),
             ..._images.map(_imageRow),
+            const SizedBox(height: 4),
+            _classificationStatus(),
           ],
         ],
       ),
     );
   }
 
-  Widget _imageRow(File f) {
+  Widget _classificationStatus() {
+    if (_detecting) {
+      return Row(
+        children: [
+          const SizedBox(
+            height: 14,
+            width: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text('Analyzing photo...',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12.5)),
+        ],
+      );
+    }
+    if (_damageType == null) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        DamageMarkerIcon(type: _damageType!, size: 22),
+        const SizedBox(width: 10),
+        Text(
+          'Classified as ${Pothole.damageLabel(_damageType!)}',
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+        ),
+      ],
+    );
+  }
+
+  Widget _imageRow(XFile f) {
     final progress = _progress[f] ?? 0;
     final paused = _paused[f] ?? false;
     final pct = (progress * 100).round();
+    final bytes = _thumbBytes[f];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -427,7 +530,10 @@ class _ReportScreenState extends State<ReportScreen> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: Image.file(f, width: 56, height: 56, fit: BoxFit.cover),
+            child: bytes != null
+                ? Image.memory(bytes, width: 56, height: 56, fit: BoxFit.cover)
+                : Container(
+                    width: 56, height: 56, color: Colors.grey.shade200),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -438,7 +544,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        f.path.split(Platform.pathSeparator).last,
+                        f.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

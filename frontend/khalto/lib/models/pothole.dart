@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
+enum DamageType { pothole, crack, missingManhole }
+
 class Pothole {
   final int id;
   final double latitude;
@@ -9,6 +11,7 @@ class Pothole {
   final String? description;
   final int severity;
   final String status;
+  final DamageType damageType;
   final int upvotesCount;
   final String? reportedBy;
   final String? reporterName;
@@ -24,6 +27,7 @@ class Pothole {
     this.description,
     required this.severity,
     required this.status,
+    this.damageType = DamageType.pothole,
     required this.upvotesCount,
     this.reportedBy,
     this.reporterName,
@@ -47,12 +51,45 @@ class Pothole {
       description: json['description'],
       severity: json['severity'] ?? 3,
       status: json['status'] ?? 'reported',
+      damageType: _damageTypeFromDb(json['damage_type']),
       upvotesCount: json['upvotes_count'] ?? 0,
       reportedBy: json['reported_by'],
       reporterName: json['reported_by_profile']?['full_name'],
       primaryImagePath: primary?['file_path'],
       createdAt: DateTime.parse(json['created_at']),
     );
+  }
+
+  static DamageType _damageTypeFromDb(String? value) {
+    switch (value) {
+      case 'crack': return DamageType.crack;
+      case 'missing_manhole': return DamageType.missingManhole;
+      default: return DamageType.pothole;
+    }
+  }
+
+  static String damageTypeToDb(DamageType type) {
+    switch (type) {
+      case DamageType.crack: return 'crack';
+      case DamageType.missingManhole: return 'missing_manhole';
+      case DamageType.pothole: return 'pothole';
+    }
+  }
+
+  static Color damageColor(DamageType type) {
+    switch (type) {
+      case DamageType.crack: return const Color(0xFFF57C00);
+      case DamageType.missingManhole: return const Color(0xFF1E88E5);
+      case DamageType.pothole: return const Color(0xFFE53935);
+    }
+  }
+
+  static String damageLabel(DamageType type) {
+    switch (type) {
+      case DamageType.crack: return 'Crack';
+      case DamageType.missingManhole: return 'Missing Manhole';
+      case DamageType.pothole: return 'Pothole';
+    }
   }
 
   static Color severityColor(int severity) {

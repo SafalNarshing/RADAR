@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../main.dart';
 import '../models/pothole.dart';
 
@@ -40,13 +40,26 @@ class SupabaseService {
   // Lightweight query for map markers — skips the profile/media joins
   // getFeed needs since the map only renders position + status/severity.
   static Future<List<Pothole>> getMapMarkers() async {
-    final data = await supabase
-        .from('potholes')
-        .select('id, latitude, longitude, severity, status, title, created_at')
-        .order('created_at', ascending: false)
-        .limit(500);
+    const baseColumns =
+        'id, latitude, longitude, severity, status, title, created_at';
+    List<dynamic> data;
+    try {
+      // damage_type distinguishes pothole vs. crack markers on the map.
+      // Falls back below if the column hasn't been added to the table yet.
+      data = await supabase
+          .from('potholes')
+          .select('$baseColumns, damage_type')
+          .order('created_at', ascending: false)
+          .limit(500);
+    } catch (_) {
+      data = await supabase
+          .from('potholes')
+          .select(baseColumns)
+          .order('created_at', ascending: false)
+          .limit(500);
+    }
 
-    return (data as List).map((e) => Pothole.fromJson(e)).toList();
+    return data.map((e) => Pothole.fromJson(e)).toList();
   }
 
   // Guards against reports/upvotes failing a FK constraint on `profiles`
@@ -74,31 +87,52 @@ class SupabaseService {
     String? title,
     String? description,
     int severity = 3,
-    List<File> images = const [],
+    DamageType? damageType,
+    List<XFile> images = const [],
   }) async {
     await _ensureProfile();
     final userId = supabase.auth.currentUser!.id;
 
-    final pothole = await supabase
-        .from('potholes')
-        .insert({
-          'latitude': latitude,
-          'longitude': longitude,
-          'address': address,
-          'title': title,
-          'description': description,
-          'severity': severity,
-          'reported_by': userId,
-        })
-        .select()
-        .single();
+    final baseFields = {
+      'latitude': latitude,
+      'longitude': longitude,
+      'address': address,
+      'title': title,
+      'description': description,
+      'severity': severity,
+      'reported_by': userId,
+    };
+
+    Map<String, dynamic> pothole;
+    try {
+      // damage_type may not exist on every environment's `potholes` table
+      // yet — fall back to the base insert below if the column is missing.
+      pothole = await supabase
+          .from('potholes')
+          .insert({
+            ...baseFields,
+            if (damageType != null)
+              'damage_type': Pothole.damageTypeToDb(damageType),
+          })
+          .select()
+          .single();
+    } catch (_) {
+      pothole = await supabase
+          .from('potholes')
+          .insert(baseFields)
+          .select()
+          .single();
+    }
 
     for (int i = 0; i < images.length; i++) {
       final file = images[i];
-      final ext = file.path.split('.').last.toLowerCase();
+      final ext = file.name.split('.').last.toLowerCase();
       final path = '${pothole['id']}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final bytes = await file.readAsBytes();
 
-      await supabase.storage.from('pothole_media').upload(path, file);
+      // uploadBinary (not upload, which needs dart:io File) works on both
+      // mobile and web.
+      await supabase.storage.from('pothole_media').uploadBinary(path, bytes);
 
       await supabase.from('pothole_media').insert({
         'pothole_id': pothole['id'],

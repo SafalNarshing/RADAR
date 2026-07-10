@@ -4,6 +4,8 @@ import 'package:latlong2/latlong.dart' as ll;
 import '../../models/pothole.dart';
 import '../../services/location_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/damage_marker_icon.dart';
+import '../../widgets/map_legend.dart';
 
 const _navy = Color(0xFF0D1B3E);
 
@@ -116,27 +118,37 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? Center(child: Text(_error!))
-              : FlutterMap(
-                  options: MapOptions(initialCenter: _center, initialZoom: 14),
+              : Stack(
                   children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.khalto',
+                    FlutterMap(
+                      options:
+                          MapOptions(initialCenter: _center, initialZoom: 14),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.khalto',
+                        ),
+                        MarkerLayer(
+                          markers: _potholes
+                              .map((p) => Marker(
+                                    point: ll.LatLng(p.latitude, p.longitude),
+                                    width: 40,
+                                    height: 40,
+                                    child: GestureDetector(
+                                      onTap: () => _showDetails(p),
+                                      child: DamageMarkerIcon(
+                                          type: p.damageType, size: 36),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
                     ),
-                    MarkerLayer(
-                      markers: _potholes
-                          .map((p) => Marker(
-                                point: ll.LatLng(p.latitude, p.longitude),
-                                width: 40,
-                                height: 40,
-                                child: GestureDetector(
-                                  onTap: () => _showDetails(p),
-                                  child: Icon(Icons.location_pin,
-                                      color: Pothole.statusColor(p.status),
-                                      size: 36),
-                                ),
-                              ))
-                          .toList(),
+                    const Positioned(
+                      right: 16,
+                      bottom: 16,
+                      child: MapLegend(),
                     ),
                   ],
                 ),
