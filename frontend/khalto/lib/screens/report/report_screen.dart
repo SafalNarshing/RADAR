@@ -11,7 +11,7 @@ import 'edit_location_map_screen.dart';
 const _navy = Color(0xFF0D1B3E);
 const _lavender = Color(0xFFE7E9FB);
 const _linkBlue = Color(0xFF3B5BFB);
-const _pageBg = Color(0xFFF4F5F8);
+// const _pageBg = Color(FFFFF);
 
 // Kathmandu Durbar Square — used only as a map-picker starting point when
 // GPS hasn't resolved a location yet.
@@ -66,8 +66,10 @@ class _ReportScreenState extends State<ReportScreen> {
     try {
       final pos = await LocationService.getCurrentLocation();
       if (pos != null) {
-        final address =
-            await LocationService.reverseGeocode(pos.latitude, pos.longitude);
+        final address = await LocationService.reverseGeocode(
+          pos.latitude,
+          pos.longitude,
+        );
         setState(() {
           _lat = pos.latitude;
           _lng = pos.longitude;
@@ -119,7 +121,8 @@ class _ReportScreenState extends State<ReportScreen> {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
@@ -152,8 +155,7 @@ class _ReportScreenState extends State<ReportScreen> {
     if (picked.isEmpty) return;
 
     final remainingSlots = 5 - _images.length;
-    final toAdd =
-        picked.take(remainingSlots).map((x) => File(x.path)).toList();
+    final toAdd = picked.take(remainingSlots).map((x) => File(x.path)).toList();
 
     setState(() {
       for (final f in toAdd) {
@@ -201,7 +203,8 @@ class _ReportScreenState extends State<ReportScreen> {
     if (_lat == null || _lng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Location is required to submit a report')),
+          content: Text('Location is required to submit a report'),
+        ),
       );
       return;
     }
@@ -213,8 +216,9 @@ class _ReportScreenState extends State<ReportScreen> {
         longitude: _lng!,
         address: _address?.full,
         title: _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
-        description:
-            _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+        description: _descCtrl.text.trim().isEmpty
+            ? null
+            : _descCtrl.text.trim(),
         images: _images,
       );
 
@@ -241,7 +245,7 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _pageBg,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -250,16 +254,24 @@ class _ReportScreenState extends State<ReportScreen> {
             children: [
               Row(
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Upload Photos',
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        color: _navy,
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: Image.asset(
+                      'assets/Radarlogo.png',
+                      height: 24,
+                      errorBuilder: (ctx, err, st) =>
+                          const SizedBox(width: 24, height: 24),
                     ),
                   ),
+                  const Text(
+                    'RADAR',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const Spacer(),
                   IconButton(
                     onPressed: _submitting
                         ? null
@@ -267,6 +279,15 @@ class _ReportScreenState extends State<ReportScreen> {
                     icon: const Icon(Icons.close, color: _navy),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Upload Photos',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: _navy,
+                ),
               ),
               const SizedBox(height: 8),
               _photosCard(),
@@ -288,11 +309,16 @@ class _ReportScreenState extends State<ReportScreen> {
                           foregroundColor: _navy,
                           side: BorderSide(color: Colors.grey.shade300),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                        child: const Text('Cancel',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -306,19 +332,25 @@ class _ReportScreenState extends State<ReportScreen> {
                           backgroundColor: _navy,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                         child: _submitting
                             ? const SizedBox(
                                 height: 22,
                                 width: 22,
                                 child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2),
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
                               )
-                            : const Text('Upload',
+                            : const Text(
+                                'Upload',
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15)),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -332,20 +364,20 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Widget _card({required Widget child}) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
         ),
-        child: child,
-      );
+      ],
+    ),
+    child: child,
+  );
 
   Widget _photosCard() {
     return _card(
@@ -369,21 +401,28 @@ class _ReportScreenState extends State<ReportScreen> {
                         color: _lavender,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(Icons.photo_library_rounded,
-                          color: _navy, size: 26),
+                      child: const Icon(
+                        Icons.photo_library_rounded,
+                        color: _navy,
+                        size: 26,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
                         style: const TextStyle(
-                            fontSize: 14, color: Colors.black87),
+                          fontSize: 14,
+                          color: Colors.black87,
+                        ),
                         children: [
                           const TextSpan(text: 'Drop your image here, or '),
                           TextSpan(
                             text: 'browse',
                             style: const TextStyle(
-                                color: _linkBlue, fontWeight: FontWeight.w600),
+                              color: _linkBlue,
+                              fontWeight: FontWeight.w600,
+                            ),
                             recognizer: _browseRecognizer,
                           ),
                         ],
@@ -392,8 +431,10 @@ class _ReportScreenState extends State<ReportScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Supports: PNG, JPG, JPEG, WEBP',
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
                     ),
                   ],
                 ),
@@ -442,7 +483,9 @@ class _ReportScreenState extends State<ReportScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     GestureDetector(
@@ -458,8 +501,11 @@ class _ReportScreenState extends State<ReportScreen> {
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => _removeImage(f),
-                      child: const Icon(Icons.close,
-                          size: 18, color: Colors.redAccent),
+                      child: const Icon(
+                        Icons.close,
+                        size: 18,
+                        color: Colors.redAccent,
+                      ),
                     ),
                   ],
                 ),
@@ -468,16 +514,19 @@ class _ReportScreenState extends State<ReportScreen> {
                   children: [
                     Text(
                       _formatSize(_sizes[f] ?? 0),
-                      style:
-                          TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                      ),
                     ),
                     const Spacer(),
                     Text(
                       '$pct%',
                       style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _navy),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _navy,
+                      ),
                     ),
                   ],
                 ),
@@ -509,7 +558,10 @@ class _ReportScreenState extends State<ReportScreen> {
               const Text(
                 'Location Details',
                 style: TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16, color: _navy),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: _navy,
+                ),
               ),
               const Spacer(),
               GestureDetector(
@@ -517,9 +569,10 @@ class _ReportScreenState extends State<ReportScreen> {
                 child: const Text(
                   'Edit on Map',
                   style: TextStyle(
-                      color: _linkBlue,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13),
+                    color: _linkBlue,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -534,27 +587,34 @@ class _ReportScreenState extends State<ReportScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
                 const SizedBox(width: 10),
-                Text('Getting location...',
-                    style: TextStyle(color: Colors.grey.shade600)),
+                Text(
+                  'Getting location...',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
               ],
             )
           else if (_lat == null)
-            Text('Location unavailable',
-                style: TextStyle(color: Colors.grey.shade600))
+            Text(
+              'Location unavailable',
+              style: TextStyle(color: Colors.grey.shade600),
+            )
           else ...[
             Text(
               (_address?.primaryLine.isNotEmpty ?? false)
                   ? _address!.primaryLine
                   : '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}',
               style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: Colors.black87),
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: Colors.black87,
+              ),
             ),
             if (_address?.secondaryLine.isNotEmpty ?? false) ...[
               const SizedBox(height: 2),
-              Text(_address!.secondaryLine,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+              Text(
+                _address!.secondaryLine,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              ),
             ],
           ],
         ],
@@ -569,7 +629,10 @@ class _ReportScreenState extends State<ReportScreen> {
         const Text(
           'Title (optional)',
           style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 13, color: _navy),
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: _navy,
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -580,7 +643,10 @@ class _ReportScreenState extends State<ReportScreen> {
         const Text(
           'Description (optional)',
           style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 13, color: _navy),
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: _navy,
+          ),
         ),
         const SizedBox(height: 8),
         TextField(
@@ -593,23 +659,22 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   InputDecoration _fieldDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _navy, width: 1.5),
-        ),
-      );
+    hintText: hint,
+    hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: _navy, width: 1.5),
+    ),
+  );
 }

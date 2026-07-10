@@ -5,6 +5,18 @@ import '../../screens/auth/auth_screen.dart';
 import '../../screens/report/report_screen.dart';
 import '../../widgets/pothole_card.dart';
 
+/// ---------------------------------------------------------------------
+/// RADAR design tokens, matching the tokens used in PotholeCard.
+/// ---------------------------------------------------------------------
+class _RadarColors {
+  static const background = Color(0xFFF6F7FB);
+  static const primary = Color(0xFF0F2B46);
+  static const card = Colors.white;
+  static const border = Color(0xFFEAEAEA);
+  static const textPrimary = Color(0xFF111111);
+  static const textSecondary = Color(0xFF6B7280);
+}
+
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
 
@@ -61,9 +73,9 @@ class _FeedScreenState extends State<FeedScreen> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -78,91 +90,229 @@ class _FeedScreenState extends State<FeedScreen> {
   Future<void> _signOut() async {
     await SupabaseService.signOut();
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AuthScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
-      appBar: AppBar(
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.warning_amber_rounded, size: 20),
-            SizedBox(width: 8),
-            Text('RADAR', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2)),
-          ],
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: _signOut,
-            tooltip: 'Sign out',
+      backgroundColor: _RadarColors.background,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight + 1),
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: _RadarColors.border, width: 1),
+            ),
           ),
-        ],
+          child: AppBar(
+            titleSpacing: 0,
+            centerTitle: false,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            foregroundColor: _RadarColors.textPrimary,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, right: 8),
+                  child: _RadarLogo(),
+                ),
+                const Text(
+                  'RADAR',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.5,
+                    fontSize: 18,
+                    color: _RadarColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              // Decorative notification affordance — no backend logic exists
+              // for notifications, so this is presentational only.
+              IconButton(
+                icon: const Icon(Icons.notifications_none_rounded, size: 24),
+                color: _RadarColors.textPrimary,
+                onPressed: null,
+                tooltip: 'Notifications',
+              ),
+              // Profile / more menu — wraps the original sign-out action so
+              // that _signOut() is triggered exactly as before, just from a
+              // menu instead of a bare icon button.
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.account_circle_outlined, size: 26),
+                color: Colors.white,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: _RadarColors.border),
+                ),
+                onSelected: (value) {
+                  if (value == 'sign_out') _signOut();
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'sign_out',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.logout_rounded,
+                          size: 18,
+                          color: _RadarColors.textPrimary,
+                        ),
+                        SizedBox(width: 10),
+                        Text(
+                          'Sign out',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                            color: _RadarColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: () => _loadFeed(refresh: true),
-        color: const Color(0xFFE53935),
+        color: _RadarColors.primary,
+        backgroundColor: Colors.white,
         child: _potholes.isEmpty && _loading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFFE53935)))
+            ? const Center(
+                child: CircularProgressIndicator(
+                  color: _RadarColors.primary,
+                  strokeWidth: 2.5,
+                ),
+              )
             : _potholes.isEmpty
-                ? _emptyState()
-                : ListView.builder(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.only(top: 8, bottom: 80),
-                    itemCount: _potholes.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (i == _potholes.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(20),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                                color: Color(0xFFE53935), strokeWidth: 2),
-                          ),
-                        );
-                      }
-                      final p = _potholes[i];
-                      return PotholeCard(
-                        pothole: p,
-                        isUpvoted: _upvotedIds.contains(p.id),
-                      );
-                    },
-                  ),
+            ? _emptyState()
+            : ListView.builder(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.only(top: 16, bottom: 96),
+                itemCount: _potholes.length + (_hasMore ? 1 : 0),
+                itemBuilder: (context, i) {
+                  if (i == _potholes.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: _RadarColors.primary,
+                          strokeWidth: 2,
+                        ),
+                      ),
+                    );
+                  }
+                  final p = _potholes[i];
+                  return PotholeCard(
+                    pothole: p,
+                    isUpvoted: _upvotedIds.contains(p.id),
+                  );
+                },
+              ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          final added = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => const ReportScreen()),
-          );
+          final added = await Navigator.of(
+            context,
+          ).push<bool>(MaterialPageRoute(builder: (_) => const ReportScreen()));
           if (added == true) _loadFeed(refresh: true);
         },
-        backgroundColor: const Color(0xFFE53935),
+        backgroundColor: _RadarColors.primary,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_road),
-        label: const Text('Report', style: TextStyle(fontWeight: FontWeight.bold)),
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        icon: const Icon(Icons.add_road_rounded),
+        label: const Text(
+          'Report',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.2),
+        ),
       ),
     );
   }
 
   Widget _emptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_road, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text('No reports yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
-          const SizedBox(height: 8),
-          Text('Be the first to report a pothole',
-              style: TextStyle(color: Colors.grey.shade400)),
-        ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _RadarColors.border),
+                      ),
+                      child: Icon(
+                        Icons.add_road_rounded,
+                        size: 44,
+                        color: _RadarColors.primary.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'No reports yet',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: _RadarColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Be the first to report a pothole',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _RadarColors.textSecondary,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Small helper so a missing/broken asset never breaks the AppBar layout.
+class _RadarLogo extends StatelessWidget {
+  const _RadarLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      'assets/Radarlogo.png',
+      height: 24,
+      errorBuilder: (ctx, err, st) => const Icon(
+        Icons.radar_rounded,
+        size: 22,
+        color: _RadarColors.primary,
       ),
     );
   }
