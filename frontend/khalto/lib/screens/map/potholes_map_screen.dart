@@ -1,0 +1,145 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as ll;
+import '../../models/pothole.dart';
+import '../../services/location_service.dart';
+import '../../services/supabase_service.dart';
+
+const _navy = Color(0xFF0D1B3E);
+
+// Kathmandu Durbar Square — used only as a map center when GPS/location
+// permission isn't available yet.
+const _fallbackLat = 27.7040;
+const _fallbackLng = 85.3070;
+
+class PotholesMapScreen extends StatefulWidget {
+  const PotholesMapScreen({super.key});
+
+  @override
+  State<PotholesMapScreen> createState() => _PotholesMapScreenState();
+}
+
+class _PotholesMapScreenState extends State<PotholesMapScreen> {
+  List<Pothole> _potholes = [];
+  bool _loading = true;
+  String? _error;
+  ll.LatLng _center = const ll.LatLng(_fallbackLat, _fallbackLng);
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final pos = await LocationService.getCurrentLocation();
+      final markers = await SupabaseService.getMapMarkers();
+      if (!mounted) return;
+      setState(() {
+        _potholes = markers;
+        if (pos != null) _center = ll.LatLng(pos.latitude, pos.longitude);
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Failed to load map: $e';
+      });
+    }
+  }
+
+  void _showDetails(Pothole p) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              p.title ?? p.address ?? 'Pothole report',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _chip(Pothole.severityLabel(p.severity),
+                    Pothole.severityColor(p.severity)),
+                const SizedBox(width: 8),
+                _chip(Pothole.statusLabel(p.status),
+                    Pothole.statusColor(p.status)),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(p.timeAgo,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: color.withValues(alpha: 0.4)),
+        ),
+        child: Text(label,
+            style: TextStyle(
+                color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Map', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _navy,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!))
+              : FlutterMap(
+                  options: MapOptions(initialCenter: _center, initialZoom: 14),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.khalto',
+                    ),
+                    MarkerLayer(
+                      markers: _potholes
+                          .map((p) => Marker(
+                                point: ll.LatLng(p.latitude, p.longitude),
+                                width: 40,
+                                height: 40,
+                                child: GestureDetector(
+                                  onTap: () => _showDetails(p),
+                                  child: Icon(Icons.location_pin,
+                                      color: Pothole.statusColor(p.status),
+                                      size: 36),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ],
+                ),
+    );
+  }
+}

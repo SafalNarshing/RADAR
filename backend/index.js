@@ -1,16 +1,25 @@
+require('dotenv').config();
 const express = require('express');
-const app = express();
-const PORT = 3000;
+const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 
-// Middleware to parse incoming JSON payloads
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const supabase = createClient(
+  process.env.PROJECT_URL.replace(/\/$/, ''),
+  process.env.SERVICE_ROLE_KEY
+);
+
+app.use(cors());
 app.use(express.json());
 
-// Base route handler
 app.get('/', (req, res) => {
-    res.send('Hello World! Your Express server is working.');
+  res.json({ status: 'RADAR backend running' });
 });
 
-// Start listening for network traffic
+app.use('/api/potholes', require('./routes/potholes'));
+
 app.listen(PORT, () => {
-    console.log(`Server running smoothly at http://localhost:${PORT}`);
+  console.log(`RADAR backend running at http://localhost:${PORT}`);
 });
