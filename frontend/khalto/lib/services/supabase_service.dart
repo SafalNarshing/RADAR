@@ -1,6 +1,7 @@
 import 'package:image_picker/image_picker.dart';
 import '../main.dart';
 import '../models/pothole.dart';
+import '../models/comment.dart';
 
 class SupabaseService {
   static Future<List<Pothole>> getFeed({int page = 1}) async {
@@ -73,10 +74,7 @@ class SupabaseService {
         .eq('id', userId)
         .maybeSingle();
     if (existing == null) {
-      await supabase.from('profiles').insert({
-        'id': userId,
-        'role': 'citizen',
-      });
+      await supabase.from('profiles').insert({'id': userId, 'role': 'citizen'});
     }
   }
 
@@ -127,7 +125,8 @@ class SupabaseService {
     for (int i = 0; i < images.length; i++) {
       final file = images[i];
       final ext = file.name.split('.').last.toLowerCase();
-      final path = '${pothole['id']}/${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final path =
+          '${pothole['id']}/${DateTime.now().millisecondsSinceEpoch}.$ext';
       final bytes = await file.readAsBytes();
 
       // uploadBinary (not upload, which needs dart:io File) works on both
@@ -202,5 +201,25 @@ class SupabaseService {
         .select()
         .eq('id', userId)
         .maybeSingle();
+  }
+
+  static Future<List<Comment>> getComments(int potholeId) async {
+    final data = await supabase
+        .from('comments')
+        .select('id, content, created_at, user_id, profiles(full_name)')
+        .eq('pothole_id', potholeId)
+        .order('created_at', ascending: true);
+
+    return (data as List).map((e) => Comment.fromJson(e)).toList();
+  }
+
+  static Future<void> addComment(int potholeId, String content) async {
+    await _ensureProfile();
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('comments').insert({
+      'pothole_id': potholeId,
+      'content': content,
+      'user_id': userId,
+    });
   }
 }

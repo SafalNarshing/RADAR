@@ -60,7 +60,8 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -74,16 +75,22 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
             const SizedBox(height: 10),
             Row(
               children: [
-                _chip(Pothole.severityLabel(p.severity),
-                    Pothole.severityColor(p.severity)),
+                _chip(
+                  Pothole.severityLabel(p.severity),
+                  Pothole.severityColor(p.severity),
+                ),
                 const SizedBox(width: 8),
-                _chip(Pothole.statusLabel(p.status),
-                    Pothole.statusColor(p.status)),
+                _chip(
+                  Pothole.statusLabel(p.status),
+                  Pothole.statusColor(p.status),
+                ),
               ],
             ),
             const SizedBox(height: 10),
-            Text(p.timeAgo,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            Text(
+              p.timeAgo,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            ),
           ],
         ),
       ),
@@ -91,25 +98,45 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
   }
 
   Widget _chip(String label, Color color) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: color.withValues(alpha: 0.4)),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Map', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: _navy,
-        foregroundColor: Colors.white,
+        titleSpacing: 0,
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 0,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12, right: 8),
+              child: Image.asset(
+                'assets/Radarlogo.png',
+                height: 24,
+                errorBuilder: (ctx, err, st) =>
+                    const SizedBox(width: 24, height: 24),
+              ),
+            ),
+            const Text(
+              'RADAR',
+              style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2),
+            ),
+          ],
+        ),
         actions: [
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
@@ -117,41 +144,40 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(child: Text(_error!))
-              : Stack(
+          ? Center(child: Text(_error!))
+          : Stack(
+              children: [
+                FlutterMap(
+                  options: MapOptions(initialCenter: _center, initialZoom: 14),
                   children: [
-                    FlutterMap(
-                      options:
-                          MapOptions(initialCenter: _center, initialZoom: 14),
-                      children: [
-                        TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.khalto',
-                        ),
-                        MarkerLayer(
-                          markers: _potholes
-                              .map((p) => Marker(
-                                    point: ll.LatLng(p.latitude, p.longitude),
-                                    width: 40,
-                                    height: 40,
-                                    child: GestureDetector(
-                                      onTap: () => _showDetails(p),
-                                      child: DamageMarkerIcon(
-                                          type: p.damageType, size: 36),
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      ],
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.khalto',
                     ),
-                    const Positioned(
-                      right: 16,
-                      bottom: 16,
-                      child: MapLegend(),
+                    MarkerLayer(
+                      markers: _potholes
+                          .map(
+                            (p) => Marker(
+                              point: ll.LatLng(p.latitude, p.longitude),
+                              width: 40,
+                              height: 40,
+                              child: GestureDetector(
+                                onTap: () => _showDetails(p),
+                                child: DamageMarkerIcon(
+                                  type: p.damageType,
+                                  size: 36,
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ],
                 ),
+                const Positioned(right: 16, bottom: 16, child: MapLegend()),
+              ],
+            ),
     );
   }
 }
