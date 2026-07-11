@@ -9,12 +9,13 @@ import '../../widgets/pothole_card.dart';
 /// RADAR design tokens, matching the tokens used in PotholeCard.
 /// ---------------------------------------------------------------------
 class _RadarColors {
-  static const background = Color(0xFFF6F7FB);
-  static const primary = Color(0xFF0F2B46);
-  static const card = Colors.white;
-  static const border = Color(0xFFEAEAEA);
-  static const textPrimary = Color(0xFF111111);
-  static const textSecondary = Color(0xFF6B7280);
+  static const background = Color(0xFFF7F9FB),
+      primary = Color(0xFF0F2B46),
+      card = Colors.white,
+      border = Color(0xFFEAEAEA),
+      textPrimary = Color(0xFF111111),
+      textSecondary = Color(0xFF6B7280);
+  
 }
 
 class FeedScreen extends StatefulWidget {
@@ -233,9 +234,7 @@ class _FeedScreenState extends State<FeedScreen> {
         backgroundColor: _RadarColors.primary,
         foregroundColor: Colors.white,
         elevation: 6,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         icon: const Icon(Icons.add_road_rounded),
         label: const Text(
           'Report',

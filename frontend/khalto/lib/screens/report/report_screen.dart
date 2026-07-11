@@ -13,7 +13,8 @@ import '../../widgets/detection_dialogs.dart';
 import 'edit_location_map_screen.dart';
 
 const _navy = Color(0xFF0D1B3E);
-const _lavender = Color(0xFFE7E9FB);
+const _lavender = Color(0xFFF7F9FB);
+
 const _linkBlue = Color(0xFF3B5BFB);
 // const _pageBg = Color(FFFFF);
 
