@@ -12,10 +12,10 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool _loading = false;
+  String? _loadingRole;
 
   Future<void> _continue(String role) async {
-    setState(() => _loading = true);
+    setState(() => _loadingRole = role);
     try {
       final response = await supabase.auth.signInAnonymously();
       final uid = response.user!.id;
@@ -51,7 +51,7 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _loadingRole = null);
     }
   }
 
@@ -152,11 +152,12 @@ class _AuthScreenState extends State<AuthScreen> {
     required bool primary,
     required Color navy,
   }) {
+    final isLoading = _loadingRole == role;
     return SizedBox(
       height: 56,
       child: ElevatedButton.icon(
-        onPressed: _loading ? null : () => _continue(role),
-        icon: _loading
+        onPressed: _loadingRole == null ? () => _continue(role) : null,
+        icon: isLoading
             ? SizedBox(
                 height: 18,
                 width: 18,
