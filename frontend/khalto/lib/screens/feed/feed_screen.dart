@@ -11,7 +11,6 @@ import '../../widgets/pothole_card.dart';
 class _RadarColors {
   static const background = Color(0xFFF7F9FB),
       primary = Color(0xFF0F2B46),
-      card = Colors.white,
       border = Color(0xFFEAEAEA),
       textPrimary = Color(0xFF111111),
       textSecondary = Color(0xFF6B7280);

@@ -9,6 +9,7 @@ import '../../models/detection.dart';
 import '../../services/onnx_detection_service.dart';
 import '../../widgets/bounding_box_overlay.dart';
 import '../../widgets/camera_preview_box.dart';
+import '../../widgets/radar_brand_title.dart';
 import '../../widgets/status_pill.dart';
 
 class DashCamScreen extends StatefulWidget {
@@ -85,8 +86,9 @@ class _DashCamScreenState extends State<DashCamScreen>
         // Pin the format explicitly rather than relying on the platform
         // default, so the frame conversion path (which only handles
         // yuv420/bgra8888) always gets what it expects.
-        imageFormatGroup:
-            Platform.isAndroid ? ImageFormatGroup.yuv420 : ImageFormatGroup.bgra8888,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.yuv420
+            : ImageFormatGroup.bgra8888,
       );
       await controller.initialize();
       if (!mounted) return;
@@ -142,7 +144,8 @@ class _DashCamScreenState extends State<DashCamScreen>
         .then((detections) {
           _processingFrame = false;
           if (!mounted) return;
-          final rotated = sensorOrientation % 360 == 90 || sensorOrientation % 360 == 270;
+          final rotated =
+              sensorOrientation % 360 == 90 || sensorOrientation % 360 == 270;
           setState(() {
             _detections = detections;
             _detectionFrameSize = rotated
@@ -229,7 +232,15 @@ class _DashCamScreenState extends State<DashCamScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-       backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: const Color(0xFFF7F9FB),
+      appBar: AppBar(
+        titleSpacing: 16,
+        centerTitle: false,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        title: const RadarBrandTitle(textColor: Colors.black),
+      ),
       body: SafeArea(child: _buildBody()),
     );
   }
@@ -334,8 +345,7 @@ class _DashCamScreenState extends State<DashCamScreen>
                     height: _recording ? 28 : 56,
                     decoration: BoxDecoration(
                       color: Colors.redAccent,
-                      borderRadius:
-                          BorderRadius.circular(_recording ? 8 : 28),
+                      borderRadius: BorderRadius.circular(_recording ? 8 : 28),
                     ),
                   ),
                 ),

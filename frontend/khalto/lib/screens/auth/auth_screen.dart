@@ -11,13 +11,8 @@ class AuthScreen extends StatefulWidget {
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen>
-    with SingleTickerProviderStateMixin {
+class _AuthScreenState extends State<AuthScreen> {
   bool _loading = false;
-  late final AnimationController _dotsController;
-  late final Animation<double> _dot1;
-  late final Animation<double> _dot2;
-  late final Animation<double> _dot3;
 
   Future<void> _continue(String role) async {
     setState(() => _loading = true);
@@ -61,41 +56,8 @@ class _AuthScreenState extends State<AuthScreen>
   }
 
   @override
-  void initState() {
-    super.initState();
-    _dotsController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-    _dot1 = Tween(begin: 0.25, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _dotsController,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeInOut),
-      ),
-    );
-    _dot2 = Tween(begin: 0.25, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _dotsController,
-        curve: const Interval(0.2, 0.7, curve: Curves.easeInOut),
-      ),
-    );
-    _dot3 = Tween(begin: 0.25, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _dotsController,
-        curve: const Interval(0.4, 0.9, curve: Curves.easeInOut),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _dotsController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    const _navy = Color(0xFF0D1B3E);
+    const navy = Color(0xFF0D1B3E);
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FB),
       body: SafeArea(
@@ -112,18 +74,18 @@ class _AuthScreenState extends State<AuthScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Padding(
-  padding: const EdgeInsets.only(bottom: 12),
-  child: Image.asset(
-    'assets/Radarlogo.png',
-    height: 180, // Increased from 120
-    fit: BoxFit.contain,
-    errorBuilder: (ctx, err, st) => const Icon(
-      Icons.warning_amber_rounded,
-      size: 180,
-      color: Color(0xFFE53935),
-    ),
-  ),
-),
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Image.asset(
+                        'assets/Radarlogo.png',
+                        height: 180, // Increased from 120
+                        fit: BoxFit.contain,
+                        errorBuilder: (ctx, err, st) => const Icon(
+                          Icons.warning_amber_rounded,
+                          size: 180,
+                          color: Color(0xFFE53935),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     const Text(
                       'RADAR',
@@ -131,7 +93,7 @@ class _AuthScreenState extends State<AuthScreen>
                       style: TextStyle(
                         fontSize: 36,
                         fontWeight: FontWeight.bold,
-                        color: _navy,
+                        color: navy,
                         letterSpacing: 4,
                       ),
                     ),
@@ -165,7 +127,7 @@ class _AuthScreenState extends State<AuthScreen>
                 icon: Icons.person_outline,
                 role: 'citizen',
                 primary: true,
-                navy: _navy,
+                navy: navy,
               ),
               const SizedBox(height: 12),
               _roleButton(
@@ -173,7 +135,7 @@ class _AuthScreenState extends State<AuthScreen>
                 icon: Icons.account_balance_outlined,
                 role: 'government',
                 primary: false,
-                navy: _navy,
+                navy: navy,
               ),
               const SizedBox(height: 36),
             ],

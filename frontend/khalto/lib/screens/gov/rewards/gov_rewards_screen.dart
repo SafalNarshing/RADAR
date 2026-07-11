@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/rewards_provider.dart';
 import '../../../theme/gov_colors.dart';
 import '../../../widgets/gov/reward_card.dart';
+import '../../../widgets/radar_brand_title.dart';
 import 'give_reward_sheet.dart';
 
 class GovRewardsScreen extends StatefulWidget {
@@ -42,10 +43,7 @@ class _GovRewardsScreenState extends State<GovRewardsScreen> {
           backgroundColor: Colors.white,
           foregroundColor: GovColors.textPrimary,
           elevation: 0,
-          title: const Text(
-            'Rewards',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
-          ),
+          title: const RadarBrandTitle(textColor: GovColors.textPrimary),
         ),
         body: Consumer<RewardsProvider>(
           builder: (context, provider, _) {

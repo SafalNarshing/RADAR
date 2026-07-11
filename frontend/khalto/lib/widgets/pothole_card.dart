@@ -37,7 +37,6 @@ class _PotholeCardState extends State<PotholeCard> {
   late bool _upvoted;
   late int _count;
   bool _voting = false;
-  bool _following = false;
   List<Comment> _comments = [];
 
   @override
@@ -378,31 +377,6 @@ class _PotholeCardState extends State<PotholeCard> {
     );
   }
 
-  Widget _followButton() {
-    return GestureDetector(
-      onTap: () => setState(() => _following = !_following),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: _following ? Colors.white : _RadarColors.primary,
-          borderRadius: BorderRadius.circular(20),
-          border: _following
-              ? Border.all(color: _RadarColors.border)
-              : null,
-        ),
-        child: Text(
-          _following ? 'following' : 'follow',
-          style: TextStyle(
-            color: _following ? _RadarColors.textSecondary : Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _commentButton() {
     return Material(
       color: Colors.transparent,
@@ -445,8 +419,9 @@ class _PotholeCardState extends State<PotholeCard> {
     final initial = await SupabaseService.getComments(widget.pothole.id);
     final TextEditingController ctrl = TextEditingController();
     List<Comment> sheetComments = initial.toList();
+    if (!mounted) return;
 
-    await showModalBottomSheet(
+    showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -498,8 +473,7 @@ class _PotholeCardState extends State<PotholeCard> {
                           vertical: 8,
                         ),
                         itemCount: sheetComments.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 4),
+                        separatorBuilder: (_, _) => const SizedBox(height: 4),
                         itemBuilder: (c, i) {
                           final cm = sheetComments[i];
                           return ListTile(
@@ -577,13 +551,12 @@ class _PotholeCardState extends State<PotholeCard> {
                                 // reload comments in sheet and in card
                                 final updated =
                                     await SupabaseService.getComments(
-                                  widget.pothole.id,
-                                );
+                                      widget.pothole.id,
+                                    );
                                 sheetComments = updated.toList();
                                 if (mounted) {
                                   setState(
-                                    () =>
-                                        _comments = updated.reversed.toList(),
+                                    () => _comments = updated.reversed.toList(),
                                   );
                                 }
                                 setModalState(() {});
@@ -650,8 +623,9 @@ class _PotholeCardState extends State<PotholeCard> {
                     ? Icons.arrow_upward_rounded
                     : Icons.arrow_upward_rounded,
                 size: 16,
-                color:
-                    _upvoted ? const Color(0xFFE53935) : Colors.grey.shade700,
+                color: _upvoted
+                    ? const Color(0xFFE53935)
+                    : Colors.grey.shade700,
               ),
               const SizedBox(width: 6),
               Text(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../providers/gov_feed_provider.dart';
 import '../../../theme/gov_colors.dart';
 import '../../../widgets/gov/gov_report_card.dart';
+import '../../../widgets/radar_brand_title.dart';
 import '../rewards/give_reward_sheet.dart';
 
 class GovFeedScreen extends StatefulWidget {
@@ -68,10 +69,7 @@ class _GovFeedScreenState extends State<GovFeedScreen> {
           backgroundColor: Colors.white,
           foregroundColor: GovColors.textPrimary,
           elevation: 0,
-          title: const Text(
-            'Review Reports',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
-          ),
+          title: const RadarBrandTitle(textColor: GovColors.textPrimary),
         ),
         body: Consumer<GovFeedProvider>(
           builder: (context, provider, _) {
@@ -99,8 +97,10 @@ class _GovFeedScreenState extends State<GovFeedScreen> {
                                 pothole: report,
                                 onStatusChange: (status) =>
                                     provider.updateStatus(report.id, status),
-                                onGiveReward: () =>
-                                    showGiveRewardSheet(context, report: report),
+                                onGiveReward: () => showGiveRewardSheet(
+                                  context,
+                                  report: report,
+                                ),
                                 onDelete: () =>
                                     _confirmDelete(report.id, report.title),
                               );

@@ -5,6 +5,7 @@ import '../../../services/supabase_service.dart';
 import '../../../theme/gov_colors.dart';
 import '../../../widgets/gov/quick_action_button.dart';
 import '../../../widgets/gov/stat_card.dart';
+import '../../../widgets/radar_brand_title.dart';
 import '../../auth/auth_screen.dart';
 
 /// Home tab of the Government/Police shell: dashboard stat cards + quick
@@ -31,9 +32,9 @@ class _GovHomeScreenState extends State<GovHomeScreen> {
   Future<void> _signOut() async {
     await SupabaseService.signOut();
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const AuthScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
     }
   }
 
@@ -49,10 +50,7 @@ class _GovHomeScreenState extends State<GovHomeScreen> {
           backgroundColor: Colors.white,
           foregroundColor: GovColors.textPrimary,
           elevation: 0,
-          title: const Text(
-            'Control Center',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
-          ),
+          title: const RadarBrandTitle(textColor: GovColors.textPrimary),
           actions: [
             IconButton(
               icon: const Icon(Icons.logout_rounded),

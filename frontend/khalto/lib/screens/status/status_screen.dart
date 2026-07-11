@@ -3,8 +3,6 @@ import '../../models/pothole.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/pothole_card.dart';
 
-const _navy = Color(0xFF0D1B3E);
-
 class StatusScreen extends StatefulWidget {
   const StatusScreen({super.key});
 

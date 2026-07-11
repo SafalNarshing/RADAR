@@ -12,6 +12,7 @@ import '../../../services/supabase_service.dart';
 import '../../../theme/gov_colors.dart';
 import '../../../widgets/damage_marker_icon.dart';
 import '../../../widgets/gov/status_picker.dart';
+import '../../../widgets/radar_brand_title.dart';
 import '../../../widgets/live_location_marker.dart';
 import '../../../widgets/map_legend.dart';
 import '../../driving/driving_mode_screen.dart';
@@ -289,10 +290,7 @@ class _GovMapScreenState extends State<GovMapScreen> {
         backgroundColor: Colors.white,
         foregroundColor: GovColors.textPrimary,
         elevation: 0,
-        title: const Text(
-          'Map',
-          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.2),
-        ),
+        title: const RadarBrandTitle(textColor: GovColors.textPrimary),
         actions: [
           IconButton(
             onPressed: _toggleAddCamera,
@@ -344,31 +342,31 @@ class _GovMapScreenState extends State<GovMapScreen> {
                             // line on top — so it reads clearly against any
                             // tile color, not just a thin dashed hairline.
                             for (final camera in _cameras)
-                              if (_linkedPothole(camera) case final linked?)
-                                ...[
-                                  Polyline(
-                                    points: [
-                                      camera.location,
-                                      ll.LatLng(
-                                        linked.latitude,
-                                        linked.longitude,
-                                      ),
-                                    ],
-                                    color: Colors.black,
-                                    strokeWidth: 5,
-                                  ),
-                                  Polyline(
-                                    points: [
-                                      camera.location,
-                                      ll.LatLng(
-                                        linked.latitude,
-                                        linked.longitude,
-                                      ),
-                                    ],
-                                    color: const Color(0xFFFFC107),
-                                    strokeWidth: 2.5,
-                                  ),
-                                ],
+                              if (_linkedPothole(camera)
+                                  case final linked?) ...[
+                                Polyline(
+                                  points: [
+                                    camera.location,
+                                    ll.LatLng(
+                                      linked.latitude,
+                                      linked.longitude,
+                                    ),
+                                  ],
+                                  color: Colors.black,
+                                  strokeWidth: 5,
+                                ),
+                                Polyline(
+                                  points: [
+                                    camera.location,
+                                    ll.LatLng(
+                                      linked.latitude,
+                                      linked.longitude,
+                                    ),
+                                  ],
+                                  color: const Color(0xFFFFC107),
+                                  strokeWidth: 2.5,
+                                ),
+                              ],
                           ],
                         ),
                         MarkerLayer(
@@ -835,7 +833,11 @@ class _ReportPopup extends StatelessWidget {
     ),
     child: Text(
       label,
-      style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.bold),
+      style: TextStyle(
+        color: color,
+        fontSize: 10.5,
+        fontWeight: FontWeight.bold,
+      ),
     ),
   );
 }
@@ -915,7 +917,10 @@ class _MaximizedReportPanel extends StatelessWidget {
                         ),
                         IconButton(
                           onPressed: onMinimize,
-                          icon: const Icon(Icons.close_fullscreen_rounded, size: 18),
+                          icon: const Icon(
+                            Icons.close_fullscreen_rounded,
+                            size: 18,
+                          ),
                           tooltip: 'Minimize',
                           color: GovColors.textSecondary,
                         ),
@@ -1093,7 +1098,11 @@ class _MaximizedReportPanel extends StatelessWidget {
     ),
     child: Text(
       label,
-      style: TextStyle(color: color, fontSize: 11.5, fontWeight: FontWeight.w700),
+      style: TextStyle(
+        color: color,
+        fontSize: 11.5,
+        fontWeight: FontWeight.w700,
+      ),
     ),
   );
 }
