@@ -81,7 +81,9 @@ class RewardCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               GestureDetector(
                 onTap: () => showStatusPicker(
@@ -97,7 +99,10 @@ class RewardCard extends StatelessWidget {
                   trailingIcon: Icons.unfold_more,
                 ),
               ),
-              const SizedBox(width: 8),
+              _badge(
+                Reward.modeLabel(r.rewardMode),
+                Reward.modeColor(r.rewardMode),
+              ),
               _badge(Reward.typeLabel(r.rewardType), GovColors.textSecondary),
             ],
           ),

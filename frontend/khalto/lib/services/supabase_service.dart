@@ -1,7 +1,9 @@
 import 'package:image_picker/image_picker.dart';
 import '../main.dart';
+import '../models/cctv_camera.dart';
 import '../models/pothole.dart';
 import '../models/comment.dart';
+import '../models/tax_reward.dart';
 
 class SupabaseService {
   static const _validPotholeStatuses = [
@@ -69,6 +71,31 @@ class SupabaseService {
     }
 
     return data.map((e) => Pothole.fromJson(e)).toList();
+  }
+
+  // Read-only for both citizen and government maps — only government can
+  // add/delete cameras (see GovService), enforced server-side by RLS.
+  static Future<List<CctvCamera>> getCctvCameras() async {
+    final data = await supabase
+        .from('cctv_cameras')
+        .select()
+        .order('created_at', ascending: false);
+    return (data as List).map((e) => CctvCamera.fromJson(e)).toList();
+  }
+
+  // Tax-credit ledger entries for the signed-in citizen — accrued from
+  // rewards given in tax_rebate/vehicle_tax mode instead of cash.
+  static Future<List<TaxReward>> getMyTaxRewards() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return [];
+
+    final data = await supabase
+        .from('tax_rewards')
+        .select()
+        .eq('citizen_id', userId)
+        .order('created_at', ascending: false);
+
+    return (data as List).map((e) => TaxReward.fromJson(e)).toList();
   }
 
   // Guards against reports/upvotes failing a FK constraint on `profiles`

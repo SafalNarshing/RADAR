@@ -10,12 +10,16 @@ import '../../../services/location_service.dart';
 import '../../../services/gov_service.dart';
 import '../../../services/supabase_service.dart';
 import '../../../theme/gov_colors.dart';
+import '../../../widgets/before_after_images.dart';
+import '../../../widgets/cctv_marker_icon.dart';
 import '../../../widgets/damage_marker_icon.dart';
+import '../../../widgets/full_image_viewer.dart';
 import '../../../widgets/gov/status_picker.dart';
 import '../../../widgets/radar_brand_title.dart';
 import '../../../widgets/live_location_marker.dart';
 import '../../../widgets/map_legend.dart';
 import '../../driving/driving_mode_screen.dart';
+import '../mark_fixed_sheet.dart';
 import 'add_cctv_sheet.dart';
 import 'cctv_feed_dialog.dart';
 
@@ -420,7 +424,7 @@ class _GovMapScreenState extends State<GovMapScreen> {
                                   height: 34,
                                   child: GestureDetector(
                                     onTap: () => _openCctvFeed(camera),
-                                    child: const _CctvMarkerIcon(),
+                                    child: const CctvMarkerIcon(),
                                   ),
                                 ),
                           ],
@@ -578,49 +582,6 @@ class _GovMapScreenState extends State<GovMapScreen> {
   }
 }
 
-class _CctvMarkerIcon extends StatelessWidget {
-  const _CctvMarkerIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D29),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          const Center(
-            child: Icon(Icons.videocam_rounded, color: Colors.white, size: 18),
-          ),
-          Positioned(
-            right: 4,
-            top: 4,
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: Colors.redAccent,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _MarkerStatusLabel extends StatelessWidget {
   final String status;
 
@@ -693,15 +654,21 @@ class _ReportPopup extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (p.primaryImagePath != null)
-              Image.network(
-                SupabaseService.getImageUrl(p.primaryImagePath!),
-                height: 100,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (ctx, err, st) => Container(
+              GestureDetector(
+                onTap: () => showFullImageViewer(
+                  context,
+                  imageUrls: [SupabaseService.getImageUrl(p.primaryImagePath!)],
+                ),
+                child: Image.network(
+                  SupabaseService.getImageUrl(p.primaryImagePath!),
                   height: 100,
-                  color: GovColors.chipBg,
-                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (ctx, err, st) => Container(
+                    height: 100,
+                    color: GovColors.chipBg,
+                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                  ),
                 ),
               )
             else
@@ -886,16 +853,24 @@ class _MaximizedReportPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (p.primaryImagePath != null)
-                Image.network(
-                  SupabaseService.getImageUrl(p.primaryImagePath!),
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (ctx, err, st) => Container(
+              if (p.primaryImagePath != null && p.fixedImagePath == null)
+                GestureDetector(
+                  onTap: () => showFullImageViewer(
+                    context,
+                    imageUrls: [
+                      SupabaseService.getImageUrl(p.primaryImagePath!),
+                    ],
+                  ),
+                  child: Image.network(
+                    SupabaseService.getImageUrl(p.primaryImagePath!),
                     height: 160,
-                    color: GovColors.chipBg,
-                    child: const Icon(Icons.broken_image, color: Colors.grey),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, st) => Container(
+                      height: 160,
+                      color: GovColors.chipBg,
+                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                    ),
                   ),
                 ),
               Padding(
@@ -982,6 +957,15 @@ class _MaximizedReportPanel extends StatelessWidget {
                         ),
                       ),
                     ],
+                    if (p.primaryImagePath != null &&
+                        p.fixedImagePath != null) ...[
+                      const SizedBox(height: 14),
+                      BeforeAfterImages(
+                        beforePath: p.primaryImagePath!,
+                        afterPath: p.fixedImagePath!,
+                        fixedAtLabel: p.fixedAtLabel,
+                      ),
+                    ],
                     const SizedBox(height: 14),
                     Row(
                       children: [
@@ -996,7 +980,8 @@ class _MaximizedReportPanel extends StatelessWidget {
                             title: 'Update status',
                             current: p.status,
                             options: _reportStatusOptions,
-                            onSelected: onStatusChange,
+                            onSelected: (status) =>
+                                _onStatusSelected(context, p, status),
                           ),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -1087,6 +1072,22 @@ class _MaximizedReportPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Marking a report "fixed" routes through the mark-fixed sheet (photo +
+  // notes) first — it persists status/fixed_at/fixed_by itself, so
+  // onStatusChange afterwards only triggers the caller's usual refresh.
+  Future<void> _onStatusSelected(
+    BuildContext context,
+    Pothole p,
+    String status,
+  ) async {
+    if (status == 'fixed') {
+      final done = await showMarkFixedSheet(context, pothole: p);
+      if (done == true) onStatusChange('fixed');
+    } else {
+      onStatusChange(status);
+    }
   }
 
   Widget _chip(String label, Color color) => Container(

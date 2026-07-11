@@ -19,6 +19,10 @@ class Pothole {
   final List<String> mediaPaths;
   final DateTime createdAt;
   final bool rewardGiven;
+  final String? fixedImagePath;
+  final DateTime? fixedAt;
+  final String? fixedBy;
+  final String? fixedNotes;
 
   Pothole({
     required this.id,
@@ -37,6 +41,10 @@ class Pothole {
     this.mediaPaths = const [],
     required this.createdAt,
     this.rewardGiven = false,
+    this.fixedImagePath,
+    this.fixedAt,
+    this.fixedBy,
+    this.fixedNotes,
   });
 
   factory Pothole.fromJson(Map<String, dynamic> json) {
@@ -67,6 +75,12 @@ class Pothole {
           const [],
       createdAt: DateTime.parse(json['created_at']),
       rewardGiven: json['reward_given'] ?? false,
+      fixedImagePath: json['fixed_image_path'],
+      fixedAt: json['fixed_at'] != null
+          ? DateTime.parse(json['fixed_at'])
+          : null,
+      fixedBy: json['fixed_by'],
+      fixedNotes: json['fixed_notes'],
     );
   }
 
@@ -162,6 +176,16 @@ class Pothole {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${months[createdAt.month - 1]} ${createdAt.day}, $time';
+  }
+
+  String? get fixedAtLabel {
+    final at = fixedAt;
+    if (at == null) return null;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[at.month - 1]} ${at.day}, ${at.year}';
   }
 }
 

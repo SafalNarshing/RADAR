@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../models/pothole.dart';
+import '../../screens/gov/mark_fixed_sheet.dart';
 import '../../services/supabase_service.dart';
 import '../../theme/gov_colors.dart';
+import '../before_after_images.dart';
+import '../full_image_viewer.dart';
 import 'status_picker.dart';
 
 const _reportStatusOptions = [
@@ -125,7 +128,7 @@ class GovReportCard extends StatelessWidget {
                     title: 'Update status',
                     current: p.status,
                     options: _reportStatusOptions,
-                    onSelected: onStatusChange,
+                    onSelected: (status) => _onStatusSelected(context, status),
                   ),
                   child: _badge(
                     Pothole.statusLabel(p.status),
@@ -139,22 +142,35 @@ class GovReportCard extends StatelessWidget {
                 ],
               ],
             ),
-            if (p.primaryImagePath != null) ...[
+            if (p.primaryImagePath != null && p.fixedImagePath != null) ...[
               const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  SupabaseService.getImageUrl(p.primaryImagePath!),
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (ctx, err, st) => Container(
+              BeforeAfterImages(
+                beforePath: p.primaryImagePath!,
+                afterPath: p.fixedImagePath!,
+                fixedAtLabel: p.fixedAtLabel,
+              ),
+            ] else if (p.primaryImagePath != null) ...[
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => showFullImageViewer(
+                  context,
+                  imageUrls: [SupabaseService.getImageUrl(p.primaryImagePath!)],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    SupabaseService.getImageUrl(p.primaryImagePath!),
                     height: 180,
-                    color: GovColors.chipBg,
-                    child: const Icon(
-                      Icons.broken_image,
-                      size: 40,
-                      color: Colors.grey,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, st) => Container(
+                      height: 180,
+                      color: GovColors.chipBg,
+                      child: const Icon(
+                        Icons.broken_image,
+                        size: 40,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                 ),
@@ -199,6 +215,19 @@ class GovReportCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Marking a report "fixed" routes through the mark-fixed sheet (photo +
+  // notes) instead of a bare status write — the sheet itself persists
+  // status/fixed_at/fixed_by, so onStatusChange is only called afterwards
+  // to trigger the caller's usual refresh.
+  Future<void> _onStatusSelected(BuildContext context, String status) async {
+    if (status == 'fixed') {
+      final done = await showMarkFixedSheet(context, pothole: pothole);
+      if (done == true) onStatusChange('fixed');
+    } else {
+      onStatusChange(status);
+    }
   }
 
   Widget _actionButton(

@@ -1,8 +1,10 @@
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import '../models/cctv_camera.dart';
 import '../models/pothole.dart';
 import '../models/reward.dart';
+import 'supabase_service.dart';
 
 class GovDashboardStats {
   final int totalReports;
@@ -98,6 +100,43 @@ class GovService {
     );
   }
 
+  // Marks a report fixed with an optional after-photo (uploaded to the same
+  // pothole_media bucket as report photos, under a fixed_ prefix so it
+  // never collides with `is_primary` report images) and notes. Sets
+  // status/fixed_at/fixed_by in one update so there's no separate write to
+  // clobber — a plain setReportStatus('fixed') call elsewhere afterwards
+  // still only touches the status column.
+  static Future<void> markFixed({
+    required int potholeId,
+    XFile? photo,
+    String? notes,
+  }) async {
+    final officerId = supabase.auth.currentUser!.id;
+    String? photoPath;
+
+    if (photo != null) {
+      final ext = photo.name.split('.').last.toLowerCase();
+      photoPath =
+          '$potholeId/fixed_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final bytes = await photo.readAsBytes();
+      await supabase.storage.from('pothole_media').uploadBinary(
+        photoPath,
+        bytes,
+      );
+    }
+
+    await supabase
+        .from('potholes')
+        .update({
+          'status': 'fixed',
+          'fixed_at': DateTime.now().toIso8601String(),
+          'fixed_by': officerId,
+          if (photoPath != null) 'fixed_image_path': photoPath,
+          if (notes != null && notes.isNotEmpty) 'fixed_notes': notes,
+        })
+        .eq('id', potholeId);
+  }
+
   // Deletes dependent rows explicitly rather than relying on each table's
   // FK behavior (unknown/inconsistent across comments, upvotes,
   // pothole_media) — only `rewards.pothole_id` is documented as
@@ -143,26 +182,49 @@ class GovService {
     required String citizenId,
     required int amount,
     required RewardType rewardType,
+    RewardMode rewardMode = RewardMode.taxRebate,
     String? reason,
   }) async {
     final officerId = supabase.auth.currentUser!.id;
-    await supabase.from('rewards').insert({
-      'pothole_id': potholeId,
-      'citizen_id': citizenId,
-      'given_by': officerId,
-      'amount': amount,
-      'reward_type': Reward.typeToDb(rewardType),
-      'reason': reason,
-    });
+    final inserted = await supabase
+        .from('rewards')
+        .insert({
+          'pothole_id': potholeId,
+          'citizen_id': citizenId,
+          'given_by': officerId,
+          'amount': amount,
+          'reward_type': Reward.typeToDb(rewardType),
+          'reward_mode': Reward.modeToDb(rewardMode),
+          'reason': reason,
+        })
+        .select()
+        .single();
+
+    // Cash still goes through pending -> approved -> paid (real payout).
+    // Tax-mode rewards have no payout step — the points ledger entry is
+    // what the citizen actually sees and eventually redeems.
+    if (rewardMode != RewardMode.cash) {
+      await supabase.from('tax_rewards').insert({
+        'citizen_id': citizenId,
+        'reward_id': inserted['id'],
+        'points': amount,
+        'tax_year': _currentTaxYear(),
+        'status': 'pending',
+      });
+    }
   }
 
-  static Future<List<CctvCamera>> getCctvCameras() async {
-    final data = await supabase
-        .from('cctv_cameras')
-        .select()
-        .order('created_at', ascending: false);
-    return (data as List).map((e) => CctvCamera.fromJson(e)).toList();
+  // Nepal's fiscal year runs mid-July to mid-July — this approximates it
+  // from the Gregorian calendar (no BS calendar conversion) purely as a
+  // human-readable label for the ledger, e.g. "2026/27".
+  static String _currentTaxYear() {
+    final now = DateTime.now();
+    final startYear = now.month >= 7 ? now.year : now.year - 1;
+    return '$startYear/${(startYear + 1).toString().substring(2)}';
   }
+
+  static Future<List<CctvCamera>> getCctvCameras() =>
+      SupabaseService.getCctvCameras();
 
   static Future<void> addCctvCamera({
     required String name,
@@ -210,6 +272,13 @@ class GovService {
             .from('potholes')
             .update({'reward_given': true})
             .eq('id', reward.potholeId!);
+      }
+
+      if (reward.rewardMode != RewardMode.cash) {
+        await supabase
+            .from('tax_rewards')
+            .update({'status': 'applied'})
+            .eq('reward_id', reward.id);
       }
     }
   }

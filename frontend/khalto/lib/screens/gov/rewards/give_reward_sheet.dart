@@ -43,6 +43,7 @@ class _GiveRewardSheetState extends State<_GiveRewardSheet> {
   final _amountCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
   RewardType _type = RewardType.manual;
+  RewardMode _mode = RewardMode.taxRebate;
 
   @override
   void initState() {
@@ -91,6 +92,7 @@ class _GiveRewardSheetState extends State<_GiveRewardSheet> {
         citizenId: selected.reportedBy!,
         amount: amount,
         rewardType: _type,
+        rewardMode: _mode,
         reason: _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
       );
       if (mounted) {
@@ -146,13 +148,32 @@ class _GiveRewardSheetState extends State<_GiveRewardSheet> {
               ] else
                 _selectedReportSummary(widget.initialReport!),
               const SizedBox(height: 16),
-              _label('Amount (NPR)'),
+              _label('Reward mode'),
+              const SizedBox(height: 8),
+              _modePicker(),
+              const SizedBox(height: 16),
+              _label(
+                _mode == RewardMode.cash ? 'Amount (NPR)' : 'Amount (points)',
+              ),
               const SizedBox(height: 8),
               TextField(
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
                 decoration: _inputDecoration('e.g. 500'),
               ),
+              if (_mode != RewardMode.cash) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'No cash payout — the citizen sees this as tax credit '
+                  'points, redeemable against next year\'s '
+                  '${_mode == RewardMode.vehicleTax ? 'vehicle tax' : 'tax filing'}.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: Colors.grey.shade600,
+                    height: 1.4,
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               _label('Reward type'),
               const SizedBox(height: 8),
@@ -288,6 +309,29 @@ class _GiveRewardSheetState extends State<_GiveRewardSheet> {
           ),
           side: BorderSide(
             color: selected ? GovColors.primary : GovColors.border,
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _modePicker() {
+    return Wrap(
+      spacing: 8,
+      children: RewardMode.values.map((m) {
+        final selected = _mode == m;
+        return ChoiceChip(
+          label: Text(Reward.modeLabel(m)),
+          selected: selected,
+          onSelected: (_) => setState(() => _mode = m),
+          selectedColor: Reward.modeColor(m).withValues(alpha: 0.15),
+          labelStyle: TextStyle(
+            color: selected ? Reward.modeColor(m) : GovColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            fontSize: 12.5,
+          ),
+          side: BorderSide(
+            color: selected ? Reward.modeColor(m) : GovColors.border,
           ),
         );
       }).toList(),

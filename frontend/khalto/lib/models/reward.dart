@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 enum RewardType { manual, autoFixed, bonus }
 
+/// How a reward is actually delivered. Cash (eSewa/Khalti) needs a real
+/// payout transaction; tax_rebate/vehicle_tax just accrue as a points
+/// ledger (see [TaxReward]) that's redeemed against tax filings later —
+/// no direct government cash outflow.
+enum RewardMode { cash, taxRebate, vehicleTax }
+
 class Reward {
   final int id;
   final int? potholeId;
@@ -9,6 +15,7 @@ class Reward {
   final String givenBy;
   final int amount;
   final RewardType rewardType;
+  final RewardMode rewardMode;
   final String status;
   final String? reason;
   final String? transactionId;
@@ -24,6 +31,7 @@ class Reward {
     required this.givenBy,
     required this.amount,
     required this.rewardType,
+    this.rewardMode = RewardMode.taxRebate,
     required this.status,
     this.reason,
     this.transactionId,
@@ -41,6 +49,7 @@ class Reward {
       givenBy: json['given_by'],
       amount: json['amount'],
       rewardType: _typeFromDb(json['reward_type']),
+      rewardMode: _modeFromDb(json['reward_mode']),
       status: json['status'] ?? 'pending',
       reason: json['reason'],
       transactionId: json['transaction_id'],
@@ -84,6 +93,50 @@ class Reward {
     }
   }
 
+  static RewardMode _modeFromDb(String? value) {
+    switch (value) {
+      case 'cash':
+        return RewardMode.cash;
+      case 'vehicle_tax':
+        return RewardMode.vehicleTax;
+      default:
+        return RewardMode.taxRebate;
+    }
+  }
+
+  static String modeToDb(RewardMode mode) {
+    switch (mode) {
+      case RewardMode.cash:
+        return 'cash';
+      case RewardMode.vehicleTax:
+        return 'vehicle_tax';
+      case RewardMode.taxRebate:
+        return 'tax_rebate';
+    }
+  }
+
+  static String modeLabel(RewardMode mode) {
+    switch (mode) {
+      case RewardMode.cash:
+        return 'Cash';
+      case RewardMode.vehicleTax:
+        return 'Vehicle Tax Discount';
+      case RewardMode.taxRebate:
+        return 'Tax Rebate';
+    }
+  }
+
+  static Color modeColor(RewardMode mode) {
+    switch (mode) {
+      case RewardMode.cash:
+        return const Color(0xFF4CAF50);
+      case RewardMode.vehicleTax:
+        return const Color(0xFF7C4DFF);
+      case RewardMode.taxRebate:
+        return const Color(0xFF1E88E5);
+    }
+  }
+
   static Color statusColor(String status) {
     switch (status) {
       case 'approved':
@@ -108,6 +161,6 @@ class Reward {
       if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
       buf.write(s[i]);
     }
-    return 'Rs. $buf';
+    return rewardMode == RewardMode.cash ? 'Rs. $buf' : '$buf pts';
   }
 }

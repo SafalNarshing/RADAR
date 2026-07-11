@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/pothole.dart';
 import '../services/supabase_service.dart';
 import '../models/comment.dart';
+import 'before_after_images.dart';
+import 'full_image_viewer.dart';
 import 'random_profile.dart';
 
 /// ---------------------------------------------------------------------
@@ -235,37 +237,53 @@ class _PotholeCardState extends State<PotholeCard> {
                   ],
                 ),
 
-                // Image
-                if (p.primaryImagePath != null) ...[
+                // Image — before/after once fixed with an after-photo,
+                // otherwise just the original report photo.
+                if (p.primaryImagePath != null && p.fixedImagePath != null) ...[
                   const SizedBox(height: 14),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Stack(
-                      children: [
-                        Image.network(
-                          SupabaseService.getImageUrl(p.primaryImagePath!),
-                          height: 220,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, st) => Container(
+                  BeforeAfterImages(
+                    beforePath: p.primaryImagePath!,
+                    afterPath: p.fixedImagePath!,
+                    fixedAtLabel: p.fixedAtLabel,
+                  ),
+                ] else if (p.primaryImagePath != null) ...[
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: () => showFullImageViewer(
+                      context,
+                      imageUrls: [
+                        SupabaseService.getImageUrl(p.primaryImagePath!),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Stack(
+                        children: [
+                          Image.network(
+                            SupabaseService.getImageUrl(p.primaryImagePath!),
                             height: 220,
-                            color: _RadarColors.chipBg,
-                            child: const Icon(
-                              Icons.broken_image,
-                              size: 48,
-                              color: Colors.grey,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (ctx, err, st) => Container(
+                              height: 220,
+                              color: _RadarColors.chipBg,
+                              child: const Icon(
+                                Icons.broken_image,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          top: 12,
-                          left: 12,
-                          child: _overlayBadge(
-                            Pothole.severityLabel(p.severity),
-                            Pothole.severityColor(p.severity),
+                          Positioned(
+                            top: 12,
+                            left: 12,
+                            child: _overlayBadge(
+                              Pothole.severityLabel(p.severity),
+                              Pothole.severityColor(p.severity),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],

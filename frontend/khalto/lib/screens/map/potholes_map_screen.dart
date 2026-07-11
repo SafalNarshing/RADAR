@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' as ll;
+import '../../models/cctv_camera.dart';
 import '../../models/pothole.dart';
 import '../../services/location_service.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/cctv_marker_icon.dart';
 import '../../widgets/damage_marker_icon.dart';
 import '../../widgets/live_location_marker.dart';
 import '../../widgets/map_legend.dart';
@@ -28,6 +30,7 @@ class PotholesMapScreen extends StatefulWidget {
 
 class _PotholesMapScreenState extends State<PotholesMapScreen> {
   List<Pothole> _potholes = [];
+  List<CctvCamera> _cameras = [];
   bool _loading = true;
   String? _error;
   ll.LatLng _center = const ll.LatLng(_fallbackLat, _fallbackLng);
@@ -101,10 +104,14 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
     });
     try {
       final pos = await LocationService.getCurrentLocation();
-      final markers = await SupabaseService.getMapMarkers();
+      final results = await Future.wait([
+        SupabaseService.getMapMarkers(),
+        SupabaseService.getCctvCameras(),
+      ]);
       if (!mounted) return;
       setState(() {
-        _potholes = markers;
+        _potholes = results[0] as List<Pothole>;
+        _cameras = results[1] as List<CctvCamera>;
         if (pos != null) _center = ll.LatLng(pos.latitude, pos.longitude);
         _loading = false;
       });
@@ -115,6 +122,17 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
         _error = 'Failed to load map: $e';
       });
     }
+  }
+
+  // Only shown once the report a camera was pointed at when added still
+  // exists — same rule as the government map, so citizens never see a
+  // camera with a dangling connection.
+  Pothole? _linkedPothole(CctvCamera camera) {
+    if (camera.potholeId == null) return null;
+    for (final p in _potholes) {
+      if (p.id == camera.potholeId) return p;
+    }
+    return null;
   }
 
   void _showDetails(Pothole p) {
@@ -250,6 +268,31 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.khalto',
                     ),
+                    PolylineLayer(
+                      polylines: [
+                        // Same solid + black-casing style as the government
+                        // map, so a monitored spot reads clearly here too.
+                        for (final camera in _cameras)
+                          if (_linkedPothole(camera) case final linked?) ...[
+                            Polyline(
+                              points: [
+                                camera.location,
+                                ll.LatLng(linked.latitude, linked.longitude),
+                              ],
+                              color: Colors.black,
+                              strokeWidth: 5,
+                            ),
+                            Polyline(
+                              points: [
+                                camera.location,
+                                ll.LatLng(linked.latitude, linked.longitude),
+                              ],
+                              color: const Color(0xFFFFC107),
+                              strokeWidth: 2.5,
+                            ),
+                          ],
+                      ],
+                    ),
                     MarkerLayer(
                       markers: [
                         ..._potholes.map(
@@ -273,6 +316,24 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
                             height: 46,
                             child: LiveLocationMarker(headingDegrees: _myHeading),
                           ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        // Citizens can view that a spot is monitored and
+                        // jump to the pothole it watches — but never the
+                        // camera feed itself, which stays government-only.
+                        for (final camera in _cameras)
+                          if (_linkedPothole(camera) case final linked?)
+                            Marker(
+                              point: camera.location,
+                              width: 34,
+                              height: 34,
+                              child: GestureDetector(
+                                onTap: () => _showDetails(linked),
+                                child: const CctvMarkerIcon(),
+                              ),
+                            ),
                       ],
                     ),
                   ],
