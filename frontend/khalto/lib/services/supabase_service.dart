@@ -4,6 +4,14 @@ import '../models/pothole.dart';
 import '../models/comment.dart';
 
 class SupabaseService {
+  static const _validPotholeStatuses = [
+    'reported',
+    'verified',
+    'in_progress',
+    'fixed',
+    'rejected',
+  ];
+
   static Future<List<Pothole>> getFeed({int page = 1}) async {
     final from = (page - 1) * 20;
     final to = from + 19;
@@ -86,10 +94,18 @@ class SupabaseService {
     String? description,
     int severity = 3,
     DamageType? damageType,
+    String? status,
     List<XFile> images = const [],
   }) async {
     await _ensureProfile();
     final userId = supabase.auth.currentUser!.id;
+    final profile = await getCurrentProfile();
+    final role = profile?['role'] as String?;
+    final initialStatus = _validPotholeStatuses.contains(status)
+        ? status
+        : role == 'government'
+        ? 'verified'
+        : 'reported';
 
     final baseFields = {
       'latitude': latitude,
@@ -99,6 +115,7 @@ class SupabaseService {
       'description': description,
       'severity': severity,
       'reported_by': userId,
+      'status': initialStatus,
     };
 
     Map<String, dynamic> pothole;

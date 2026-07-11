@@ -15,7 +15,6 @@ class _RadarColors {
       border = Color(0xFFEAEAEA),
       textPrimary = Color(0xFF111111),
       textSecondary = Color(0xFF6B7280);
-  
 }
 
 class FeedScreen extends StatefulWidget {
