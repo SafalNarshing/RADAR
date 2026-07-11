@@ -138,7 +138,7 @@ class _DashCamScreenState extends State<DashCamScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+       backgroundColor: const Color(0xFFF7F9FB),
       body: SafeArea(child: _buildBody()),
     );
   }
