@@ -29,6 +29,7 @@ class RadarApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF7F9FB),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFE53935),
           foregroundColor: Colors.white,

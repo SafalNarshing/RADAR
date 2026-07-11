@@ -48,7 +48,7 @@ class _StatusScreenState extends State<StatusScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFF7F9FB),
       appBar: AppBar(
         titleSpacing: 0,
         centerTitle: false,

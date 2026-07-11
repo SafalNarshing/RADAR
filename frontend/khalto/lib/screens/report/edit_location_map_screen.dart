@@ -39,6 +39,7 @@ class _EditLocationMapScreenState extends State<EditLocationMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F9FB),
       appBar: AppBar(
         title: const Text('Edit Location'),
         backgroundColor: _navy,
@@ -76,17 +77,20 @@ class _EditLocationMapScreenState extends State<EditLocationMapScreen> {
             child: SizedBox(
               height: 52,
               child: ElevatedButton(
-                onPressed: () => Navigator.of(context)
-                    .pop((_center.latitude, _center.longitude)),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop((_center.latitude, _center.longitude)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _navy,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
-                child: const Text('Confirm Location',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                child: const Text(
+                  'Confirm Location',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
             ),
           ),
