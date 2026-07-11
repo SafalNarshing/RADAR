@@ -19,6 +19,7 @@ dependencies:
   flutter_map: ^8.1.1
   latlong2: ^0.9.1
   camera: ^0.11.0+2
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:

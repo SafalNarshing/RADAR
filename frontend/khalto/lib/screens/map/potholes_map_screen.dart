@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' as ll;
 import '../../models/pothole.dart';
 import '../../services/location_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/damage_marker_icon.dart';
+import '../../widgets/live_location_marker.dart';
 import '../../widgets/map_legend.dart';
+import '../driving/driving_mode_screen.dart';
 
 const _navy = Color(0xFF0D1B3E);
 
@@ -27,10 +32,66 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
   String? _error;
   ll.LatLng _center = const ll.LatLng(_fallbackLat, _fallbackLng);
 
+  StreamSubscription<Position>? _positionSub;
+  ll.LatLng? _myLocation;
+  double _myHeading = 0;
+
   @override
   void initState() {
     super.initState();
     _load();
+    _startLiveLocation();
+  }
+
+  @override
+  void dispose() {
+    _positionSub?.cancel();
+    super.dispose();
+  }
+
+  /// Best-effort live location for the "you are here" marker. Failures are
+  /// silent here — [_load] already surfaces a proper error if location is
+  /// unavailable for centering the map, so this just skips the marker.
+  Future<void> _startLiveLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    _positionSub?.cancel();
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 5,
+      ),
+    ).listen(_onPositionUpdate, onError: (_) {});
+  }
+
+  void _onPositionUpdate(Position position) {
+    if (!mounted) return;
+
+    final previous = _myLocation;
+    final updated = ll.LatLng(position.latitude, position.longitude);
+
+    double heading = _myHeading;
+    if (position.heading >= 0 && position.headingAccuracy >= 0) {
+      heading = position.heading;
+    } else if (previous != null &&
+        const ll.Distance().as(ll.LengthUnit.Meter, previous, updated) > 1) {
+      heading = const ll.Distance().bearing(previous, updated);
+    }
+
+    setState(() {
+      _myLocation = updated;
+      _myHeading = heading;
+    });
   }
 
   Future<void> _load() async {
@@ -91,6 +152,31 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
               p.timeAgo,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _navy,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => DrivingModeScreen(
+                        destination: ll.LatLng(p.latitude, p.longitude),
+                        destinationLabel: p.title ?? p.address,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.navigation),
+                label: const Text('Navigate here'),
+              ),
+            ),
           ],
         ),
       ),
@@ -148,7 +234,16 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
           : Stack(
               children: [
                 FlutterMap(
-                  options: MapOptions(initialCenter: _center, initialZoom: 14),
+                  options: MapOptions(
+                    initialCenter: _center,
+                    initialZoom: 14,
+                    onLongPress: (_, point) => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DrivingModeScreen(destination: point),
+                      ),
+                    ),
+                  ),
                   children: [
                     TileLayer(
                       urlTemplate:
@@ -156,22 +251,29 @@ class _PotholesMapScreenState extends State<PotholesMapScreen> {
                       userAgentPackageName: 'com.example.khalto',
                     ),
                     MarkerLayer(
-                      markers: _potholes
-                          .map(
-                            (p) => Marker(
-                              point: ll.LatLng(p.latitude, p.longitude),
-                              width: 40,
-                              height: 40,
-                              child: GestureDetector(
-                                onTap: () => _showDetails(p),
-                                child: DamageMarkerIcon(
-                                  type: p.damageType,
-                                  size: 36,
-                                ),
+                      markers: [
+                        ..._potholes.map(
+                          (p) => Marker(
+                            point: ll.LatLng(p.latitude, p.longitude),
+                            width: 40,
+                            height: 40,
+                            child: GestureDetector(
+                              onTap: () => _showDetails(p),
+                              child: DamageMarkerIcon(
+                                type: p.damageType,
+                                size: 36,
                               ),
                             ),
-                          )
-                          .toList(),
+                          ),
+                        ),
+                        if (_myLocation != null)
+                          Marker(
+                            point: _myLocation!,
+                            width: 46,
+                            height: 46,
+                            child: LiveLocationMarker(headingDegrees: _myHeading),
+                          ),
+                      ],
                     ),
                   ],
                 ),
