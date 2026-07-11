@@ -123,7 +123,7 @@ class _PotholeCardState extends State<PotholeCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            profile.name,
+                            p.reporterName ?? 'Anonymous',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 15,

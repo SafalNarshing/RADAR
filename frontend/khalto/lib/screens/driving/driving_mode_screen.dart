@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart' as ll;
@@ -27,6 +28,55 @@ const _arrivalRadiusMeters = 30.0;
 // just return identical (wrong) numbers.
 const _cyclingSpeedMetersPerSecond = 4.2; // ~15 km/h
 const _walkingSpeedMetersPerSecond = 1.4; // ~5 km/h
+
+const _stepAnnounceRadiusMeters = 40.0;
+const _potholeAnnounceRadiusMeters = 100.0;
+
+/// A turn-by-turn instruction derived from one OSRM route step, spoken once
+/// the user gets within [_stepAnnounceRadiusMeters] of its maneuver point.
+class _RouteStep {
+  const _RouteStep({required this.location, required this.instruction});
+
+  final ll.LatLng location;
+  final String instruction;
+}
+
+String _instructionForStep(Map<String, dynamic> step) {
+  final maneuver = step['maneuver'] as Map<String, dynamic>;
+  final type = maneuver['type'] as String?;
+  final modifier = maneuver['modifier'] as String?;
+  final name = step['name'] as String?;
+  final roadSuffix = (name != null && name.isNotEmpty) ? ' onto $name' : '';
+
+  switch (type) {
+    case 'depart':
+      return 'Starting navigation';
+    case 'arrive':
+      return 'You have arrived at your destination';
+    case 'roundabout':
+    case 'rotary':
+      return 'Enter the roundabout';
+  }
+
+  switch (modifier) {
+    case 'left':
+      return 'Turn left$roadSuffix';
+    case 'right':
+      return 'Turn right$roadSuffix';
+    case 'sharp left':
+      return 'Sharp left turn$roadSuffix';
+    case 'sharp right':
+      return 'Sharp right turn$roadSuffix';
+    case 'slight left':
+      return 'Bear left$roadSuffix';
+    case 'slight right':
+      return 'Bear right$roadSuffix';
+    case 'uturn':
+      return 'Make a U-turn';
+    default:
+      return 'Continue straight$roadSuffix';
+  }
+}
 
 /// Full-screen turn-by-turn-style driving view.
 ///
@@ -68,11 +118,24 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
 
   List<Pothole> _potholes = [];
 
+  final FlutterTts _tts = FlutterTts();
+  bool _voiceGuidanceEnabled = false;
+  List<_RouteStep> _routeSteps = const [];
+  int _nextStepIndex = 0;
+  final Set<int> _announcedPotholeIds = {};
+
   @override
   void initState() {
     super.initState();
     _initialize();
     _loadPotholes();
+    _initTts();
+  }
+
+  Future<void> _initTts() async {
+    await _tts.setLanguage('en-US');
+    await _tts.setSpeechRate(0.45);
+    await _tts.setVolume(1.0);
   }
 
   /// Reported potholes along the route, so they stay visible in driving mode
@@ -92,6 +155,7 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
   void dispose() {
     _positionSub?.cancel();
     _mapController.dispose();
+    _tts.stop();
     super.dispose();
   }
 
@@ -233,6 +297,8 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
       _mapController.move(updated, _mapController.camera.zoom);
     }
 
+    _announceUpcomingStep(updated);
+    _announceNearbyPotholes(updated);
     _checkArrival(updated);
   }
 
@@ -242,7 +308,46 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
         const ll.Distance().as(ll.LengthUnit.Meter, location, widget.destination);
     if (distance <= _arrivalRadiusMeters) {
       _hasArrived = true;
+      _speak('You have arrived at your destination');
       _showArrivedDialog();
+    }
+  }
+
+  void _announceUpcomingStep(ll.LatLng location) {
+    if (!_voiceGuidanceEnabled || _nextStepIndex >= _routeSteps.length) return;
+    final step = _routeSteps[_nextStepIndex];
+    final distance = const ll.Distance().as(ll.LengthUnit.Meter, location, step.location);
+    if (distance <= _stepAnnounceRadiusMeters) {
+      _speak(step.instruction);
+      _nextStepIndex++;
+    }
+  }
+
+  void _announceNearbyPotholes(ll.LatLng location) {
+    if (!_voiceGuidanceEnabled || _potholes.isEmpty) return;
+    for (final p in _potholes) {
+      if (_announcedPotholeIds.contains(p.id)) continue;
+      final distance = const ll.Distance()
+          .as(ll.LengthUnit.Meter, location, ll.LatLng(p.latitude, p.longitude));
+      if (distance <= _potholeAnnounceRadiusMeters) {
+        _announcedPotholeIds.add(p.id);
+        _speak('${Pothole.damageLabel(p.damageType)} ahead');
+      }
+    }
+  }
+
+  void _speak(String text) {
+    if (!_voiceGuidanceEnabled) return;
+    _tts.speak(text);
+  }
+
+  Future<void> _toggleVoiceGuidance() async {
+    final enabling = !_voiceGuidanceEnabled;
+    setState(() => _voiceGuidanceEnabled = enabling);
+    if (enabling) {
+      await _tts.speak('Voice guidance on');
+    } else {
+      await _tts.stop();
     }
   }
 
@@ -256,7 +361,7 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
       final uri = Uri.parse(
         '$_osrmBaseUrl/${from.longitude},${from.latitude};'
         '${to.longitude},${to.latitude}'
-        '?overview=full&geometries=geojson',
+        '?overview=full&geometries=geojson&steps=true',
       );
 
       final response = await http.get(uri).timeout(const Duration(seconds: 12));
@@ -280,11 +385,27 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
               .map((c) => ll.LatLng((c as List)[1] as double, c[0] as double))
               .toList();
 
+      final steps = <_RouteStep>[];
+      for (final leg in route['legs'] as List<dynamic>) {
+        for (final step in (leg as Map<String, dynamic>)['steps'] as List<dynamic>) {
+          final maneuver = (step as Map<String, dynamic>)['maneuver'] as Map<String, dynamic>;
+          final location = maneuver['location'] as List<dynamic>;
+          steps.add(
+            _RouteStep(
+              location: ll.LatLng((location[1] as num).toDouble(), (location[0] as num).toDouble()),
+              instruction: _instructionForStep(step),
+            ),
+          );
+        }
+      }
+
       if (!mounted) return;
       setState(() {
         _routePoints = coordinates;
         _routeDistanceMeters = (route['distance'] as num).toDouble();
         _routeDurationSeconds = (route['duration'] as num).toDouble();
+        _routeSteps = steps;
+        _nextStepIndex = 0;
         _isLoadingRoute = false;
       });
     } on TimeoutException {
@@ -511,6 +632,23 @@ class _DrivingModeScreenState extends State<DrivingModeScreen> {
                   distanceMeters: _routeDistanceMeters!,
                   durationSeconds: _routeDurationSeconds!,
                   destinationLabel: widget.destinationLabel,
+                ),
+              ),
+            ),
+
+          if (_errorMessage == null)
+            Positioned(
+              left: 16,
+              top: 12,
+              child: SafeArea(
+                child: _CircleButton(
+                  icon: _voiceGuidanceEnabled ? Icons.volume_up : Icons.volume_off,
+                  backgroundColor: _voiceGuidanceEnabled ? _navy : Colors.white,
+                  iconColor: _voiceGuidanceEnabled ? Colors.white : _navy,
+                  tooltip: _voiceGuidanceEnabled
+                      ? 'Turn off voice guidance'
+                      : 'Turn on voice guidance',
+                  onPressed: _toggleVoiceGuidance,
                 ),
               ),
             ),

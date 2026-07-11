@@ -10,6 +10,7 @@ import '../../services/supabase_service.dart';
 import '../../widgets/damage_marker_icon.dart';
 import '../../widgets/dashed_border_box.dart';
 import '../../widgets/detection_dialogs.dart';
+import 'damage_scan_camera_screen.dart';
 import 'edit_location_map_screen.dart';
 
 const _navy = Color(0xFF0D1B3E);
@@ -31,6 +32,7 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
+  final _nameCtrl = TextEditingController();
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   late final TapGestureRecognizer _browseRecognizer;
@@ -58,10 +60,20 @@ class _ReportScreenState extends State<ReportScreen> {
     super.initState();
     _browseRecognizer = TapGestureRecognizer()..onTap = _showImageSourceSheet;
     _fetchLocation();
+    _prefillName();
+  }
+
+  Future<void> _prefillName() async {
+    final profile = await SupabaseService.getCurrentProfile();
+    final name = profile?['full_name'] as String?;
+    if (mounted && name != null && name.trim().isNotEmpty) {
+      _nameCtrl.text = name;
+    }
   }
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _browseRecognizer.dispose();
@@ -129,7 +141,7 @@ class _ReportScreenState extends State<ReportScreen> {
       return;
     }
 
-    final source = await showModalBottomSheet<ImageSource>(
+    await showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -139,19 +151,67 @@ class _ReportScreenState extends State<ReportScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text('Camera'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              title: const Text('Scan with camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _scanWithCamera();
+              },
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Gallery'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImages(ImageSource.gallery);
+              },
             ),
           ],
         ),
       ),
     );
-    if (source != null) await _pickImages(source);
+  }
+
+  /// Opens the on-device AI scan camera (draws bounding boxes on capture)
+  /// instead of a plain image_picker camera shot, so the model's detection
+  /// runs at capture time rather than after the fact.
+  Future<void> _scanWithCamera() async {
+    final result = await Navigator.of(context).push<(XFile, DamageType?)>(
+      MaterialPageRoute(builder: (_) => const DamageScanCameraScreen()),
+    );
+    if (result == null) return;
+    final (image, damageType) = result;
+    await _addScannedImage(image, damageType);
+  }
+
+  Future<void> _addScannedImage(XFile file, DamageType? damageType) async {
+    if (_images.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You can add up to 5 photos')),
+      );
+      return;
+    }
+
+    final size = await file.length();
+    final bytes = await file.readAsBytes();
+
+    setState(() {
+      _images.add(file);
+      _progress[file] = 0;
+      _paused[file] = false;
+      _sizes[file] = size;
+      _thumbBytes[file] = bytes;
+      if (damageType != null) _damageType = damageType;
+    });
+    _startProgressTicker();
+
+    // The scan screen already ran real detection — only fall back to
+    // manual classification when it found nothing confident, instead of
+    // also running the simulated detector on top of a real result.
+    if (damageType == null && mounted) {
+      final selected = await showManualDamageTypeDialog(context);
+      if (!mounted) return;
+      if (selected != null) setState(() => _damageType = selected);
+    }
   }
 
   Future<void> _pickImages(ImageSource source) async {
@@ -280,9 +340,16 @@ class _ReportScreenState extends State<ReportScreen> {
       );
       return;
     }
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter your name to submit a report')),
+      );
+      return;
+    }
 
     setState(() => _submitting = true);
     try {
+      await SupabaseService.updateFullName(_nameCtrl.text.trim());
       await SupabaseService.submitReport(
         latitude: _lat!,
         longitude: _lng!,
@@ -734,6 +801,25 @@ class _ReportScreenState extends State<ReportScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const Text(
+          'Your Name',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: _navy,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Shown to officers reviewing this report',
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 11.5),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _nameCtrl,
+          decoration: _fieldDecoration('e.g. Ramesh Shrestha'),
+        ),
+        const SizedBox(height: 16),
         const Text(
           'Title (optional)',
           style: TextStyle(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../main.dart';
+import '../gov/gov_home_shell.dart';
 import '../home_shell.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -24,15 +25,20 @@ class _AuthScreenState extends State<AuthScreen>
       final response = await supabase.auth.signInAnonymously();
       final uid = response.user!.id;
 
+      // full_name isn't collected here — it's asked for when submitting a
+      // report instead (see ReportScreen), to keep sign-in to one tap.
       await supabase.from('profiles').upsert({
         'id': uid,
         'role': role,
       }, onConflict: 'id');
 
       if (mounted) {
-        Navigator.of(
-          context,
-        ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeShell()));
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) =>
+                role == 'government' ? const GovHomeShell() : const HomeShell(),
+          ),
+        );
       }
     } on AuthException catch (e) {
       if (mounted) {

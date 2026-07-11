@@ -16,7 +16,9 @@ class Pothole {
   final String? reportedBy;
   final String? reporterName;
   final String? primaryImagePath;
+  final List<String> mediaPaths;
   final DateTime createdAt;
+  final bool rewardGiven;
 
   Pothole({
     required this.id,
@@ -32,7 +34,9 @@ class Pothole {
     this.reportedBy,
     this.reporterName,
     this.primaryImagePath,
+    this.mediaPaths = const [],
     required this.createdAt,
+    this.rewardGiven = false,
   });
 
   factory Pothole.fromJson(Map<String, dynamic> json) {
@@ -56,7 +60,13 @@ class Pothole {
       reportedBy: json['reported_by'],
       reporterName: json['reported_by_profile']?['full_name'],
       primaryImagePath: primary?['file_path'],
+      mediaPaths: mediaList
+              ?.map((m) => m['file_path'] as String?)
+              .whereType<String>()
+              .toList() ??
+          const [],
       createdAt: DateTime.parse(json['created_at']),
+      rewardGiven: json['reward_given'] ?? false,
     );
   }
 

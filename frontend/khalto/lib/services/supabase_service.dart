@@ -203,6 +203,18 @@ class SupabaseService {
         .maybeSingle();
   }
 
+  // Anonymous sign-in has no name of its own — this is called from
+  // ReportScreen so a citizen's identity is captured the first time it's
+  // actually needed (attributing a report) rather than at sign-in.
+  static Future<void> updateFullName(String name) async {
+    await _ensureProfile();
+    final userId = supabase.auth.currentUser!.id;
+    await supabase.from('profiles').update({'full_name': name}).eq(
+      'id',
+      userId,
+    );
+  }
+
   static Future<List<Comment>> getComments(int potholeId) async {
     final data = await supabase
         .from('comments')

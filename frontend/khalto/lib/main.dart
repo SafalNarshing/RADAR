@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'screens/auth/auth_screen.dart';
-import 'screens/home_shell.dart';
+import 'screens/role_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,7 +36,7 @@ class RadarApp extends StatelessWidget {
         ),
       ),
       home: supabase.auth.currentSession != null
-          ? const HomeShell()
+          ? const RoleGate()
           : const AuthScreen(),
     );
   }
