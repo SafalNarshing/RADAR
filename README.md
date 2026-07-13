@@ -1,7 +1,5 @@
 # RADAR — Road Assessment and Damage Accountability Reporter
 
-> Built in **48 hours** at **OrchidHackX 2026**, Orchid International College, Kathmandu.
-
 An AI-powered mobile application that detects road damage in real time, maps hazardous zones across the city, and alerts drivers before they encounter road hazards.
 
 ## Problem Statement
