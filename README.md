@@ -14,6 +14,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-auth%2C%20db%20%26%20storage-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![Status](https://img.shields.io/badge/Status-Hackathon%20Prototype-orange)](#-whats-not-yet-built)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![YouTube](https://img.shields.io/badge/YouTube-Demo-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/shorts/FuBHqplMNDk)
 
 <br/>
 
